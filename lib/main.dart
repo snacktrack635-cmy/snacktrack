@@ -9,11 +9,11 @@ void main() async {
   // Initialize Supabase with your project URL & anon key
   // Replace these with your actual Supabase project credentials or environment variables
   const supabaseUrl = String.fromEnvironment(
-    'SUPABASE_URL',
+    'https://tmckkcgymgdunakhdywj.supabase.co/rest/v1/',
     defaultValue: 'https://xyzcompany.supabase.co',
   );
   const supabaseAnonKey = String.fromEnvironment(
-    'SUPABASE_ANON_KEY',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRtY2trY2d5bWdkdW5ha2hkeXdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyNTA0NjUsImV4cCI6MjEwMzgyNjQ2NX0.-9KchXA-vhqMMF1dtUCuOW-ajb46-zbj6IL90RqBwZU',
     defaultValue: 'public-anon-key',
   );
 
