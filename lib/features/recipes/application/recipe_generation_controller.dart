@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/recipe.dart';
 import '../../../data/repositories/pantry_repository.dart';
@@ -63,7 +64,8 @@ class RecipeGenerationController extends StateNotifier<RecipeGenerationState> {
         isGenerating: false,
         currentRecipe: recipe,
       );
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [RecipeGenerationController.generateRecipeForItem] Error: $e\n$st');
       final msg = e.toString();
       state = state.copyWith(
         isGenerating: false,
@@ -96,7 +98,8 @@ class RecipeGenerationController extends StateNotifier<RecipeGenerationState> {
         isGenerating: false,
         currentRecipe: recipe,
       );
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [RecipeGenerationController.generateExpiringSoonRecipe] Error: $e\n$st');
       final msg = e.toString();
       state = state.copyWith(
         isGenerating: false,

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:snacktrack/data/datasources/edge_functions_ds.dart';
 import 'package:snacktrack/providers/global_providers.dart';
@@ -48,7 +49,8 @@ class OnboardingController extends StateNotifier<OnboardingState> {
         loginCount: count,
         hasCompletedOnboarding: count > 1,
       );
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('❌ [OnboardingController.recordAppSession] Failed: $e\n$st');
       state = state.copyWith(isLoading: false);
     }
   }

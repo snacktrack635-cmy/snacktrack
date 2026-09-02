@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:snacktrack/core/constants/app_constants.dart';
+import 'package:snacktrack/core/network/supabase_client.dart';
 import 'package:snacktrack/data/models/subscription.dart';
 
 class SubscriptionRepository {
@@ -19,13 +20,26 @@ class SubscriptionRepository {
       );
     }
 
-    final response = await _client
-        .from(AppConstants.subscriptionsTable)
-        .select()
-        .eq('user_id', userId)
-        .maybeSingle();
+    try {
+      final response = await _client
+          .from(AppConstants.subscriptionsTable)
+          .select()
+          .eq('user_id', userId)
+          .maybeSingle();
 
-    if (response == null) {
+      if (response == null) {
+        return UserSubscription(
+          id: '',
+          userId: userId,
+          tier: SubscriptionTier.free,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+      }
+
+      return UserSubscription.fromJson(response);
+    } catch (e, st) {
+      AppSupabaseClient.logError('getSubscription', e, st);
       return UserSubscription(
         id: '',
         userId: userId,
@@ -34,8 +48,6 @@ class SubscriptionRepository {
         updatedAt: DateTime.now(),
       );
     }
-
-    return UserSubscription.fromJson(response);
   }
 
   Future<UsageCounter> getUsageCounters() async {
@@ -47,20 +59,28 @@ class SubscriptionRepository {
       );
     }
 
-    final response = await _client
-        .from(AppConstants.usageCountersTable)
-        .select()
-        .eq('user_id', userId)
-        .maybeSingle();
+    try {
+      final response = await _client
+          .from(AppConstants.usageCountersTable)
+          .select()
+          .eq('user_id', userId)
+          .maybeSingle();
 
-    if (response == null) {
+      if (response == null) {
+        return UsageCounter(
+          userId: userId,
+          periodStart: DateTime.now(),
+        );
+      }
+
+      return UsageCounter.fromJson(response);
+    } catch (e, st) {
+      AppSupabaseClient.logError('getUsageCounters', e, st);
       return UsageCounter(
         userId: userId,
         periodStart: DateTime.now(),
       );
     }
-
-    return UsageCounter.fromJson(response);
   }
 
   Future<bool> canScan(SubscriptionTier tier, int currentScans) async {
@@ -79,6 +99,10 @@ class SubscriptionRepository {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
 
-    await _client.rpc('increment_usage_scans', params: {'p_user_id': userId});
+    try {
+      await _client.rpc('increment_usage_scans', params: {'p_user_id': userId});
+    } catch (e, st) {
+      AppSupabaseClient.logError('incrementScanUsage RPC', e, st);
+    }
   }
 }

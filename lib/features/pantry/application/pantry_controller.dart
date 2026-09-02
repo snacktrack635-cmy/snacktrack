@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/pantry_item.dart';
 import '../../../data/repositories/pantry_repository.dart';
@@ -50,7 +51,8 @@ class PantryController extends StateNotifier<PantryState> {
         searchQuery: state.searchQuery.isEmpty ? null : state.searchQuery,
       );
       state = state.copyWith(items: items, isLoading: false);
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [PantryController.loadItems] Error: $e\n$st');
       state = state.copyWith(
         isLoading: false,
         errorMessage: 'Failed to load pantry items: $e',
@@ -62,7 +64,8 @@ class PantryController extends StateNotifier<PantryState> {
     try {
       final newItem = await _repository.addPantryItem(item);
       state = state.copyWith(items: [newItem, ...state.items]);
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [PantryController.addItem] Error: $e\n$st');
       state = state.copyWith(errorMessage: 'Failed to add item: $e');
     }
   }
@@ -76,7 +79,8 @@ class PantryController extends StateNotifier<PantryState> {
         updatedList[index] = updated;
         state = state.copyWith(items: updatedList);
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [PantryController.updateItem] Error: $e\n$st');
       state = state.copyWith(errorMessage: 'Failed to update item: $e');
     }
   }
@@ -87,7 +91,8 @@ class PantryController extends StateNotifier<PantryState> {
       state = state.copyWith(
         items: state.items.where((element) => element.id != itemId).toList(),
       );
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [PantryController.deleteItem] Error: $e\n$st');
       state = state.copyWith(errorMessage: 'Failed to delete item: $e');
     }
   }

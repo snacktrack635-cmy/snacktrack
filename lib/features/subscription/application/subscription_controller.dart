@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/tier_limits.dart';
 import '../../../data/models/subscription.dart';
@@ -69,7 +70,8 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
         usageCounter: usage,
         isLoading: false,
       );
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [SubscriptionController.loadSubscription] Error: $e\n$st');
       state = state.copyWith(
         isLoading: false,
         errorMessage: 'Failed to load subscription details: $e',
@@ -83,7 +85,8 @@ class SubscriptionController extends StateNotifier<SubscriptionState> {
       // In production, launches Stripe checkout session / in-app purchase flow
       await Future.delayed(const Duration(seconds: 1));
       state = state.copyWith(isUpgrading: false);
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [SubscriptionController.upgradeToTier] Error: $e\n$st');
       state = state.copyWith(
         isUpgrading: false,
         errorMessage: 'Upgrade failed: $e',

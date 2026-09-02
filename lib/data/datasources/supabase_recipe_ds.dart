@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/network/supabase_client.dart';
 import '../models/recipe.dart';
 
 class SupabaseRecipeDataSource {
@@ -24,7 +25,8 @@ class SupabaseRecipeDataSource {
       final response = await query.order('generation_count', ascending: false).limit(1).maybeSingle();
       if (response == null) return null;
       return Recipe.fromJson(response);
-    } catch (_) {
+    } catch (e, st) {
+      AppSupabaseClient.logError('getCachedRecipe ("$normalizedName")', e, st);
       return null;
     }
   }
@@ -33,13 +35,18 @@ class SupabaseRecipeDataSource {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return [];
 
-    final response = await _client
-        .from(AppConstants.favoriteRecipesTable)
-        .select()
-        .eq('user_id', userId)
-        .order('created_at', ascending: false);
+    try {
+      final response = await _client
+          .from(AppConstants.favoriteRecipesTable)
+          .select()
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
 
-    return (response as List).map((json) => FavoriteRecipe.fromJson(json)).toList();
+      return (response as List).map((json) => FavoriteRecipe.fromJson(json)).toList();
+    } catch (e, st) {
+      AppSupabaseClient.logError('getFavorites', e, st);
+      rethrow;
+    }
   }
 
   Future<FavoriteRecipe> addFavorite({
@@ -55,37 +62,52 @@ class SupabaseRecipeDataSource {
       'recipe_snapshot': recipe.toJson(),
     };
 
-    final response = await _client
-        .from(AppConstants.favoriteRecipesTable)
-        .upsert(data)
-        .select()
-        .single();
+    try {
+      final response = await _client
+          .from(AppConstants.favoriteRecipesTable)
+          .upsert(data)
+          .select()
+          .single();
 
-    return FavoriteRecipe.fromJson(response);
+      return FavoriteRecipe.fromJson(response);
+    } catch (e, st) {
+      AppSupabaseClient.logError('addFavorite ("$recipeId")', e, st);
+      rethrow;
+    }
   }
 
   Future<void> removeFavorite(String recipeId) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
 
-    await _client
-        .from(AppConstants.favoriteRecipesTable)
-        .delete()
-        .eq('user_id', userId)
-        .eq('recipe_id', recipeId);
+    try {
+      await _client
+          .from(AppConstants.favoriteRecipesTable)
+          .delete()
+          .eq('user_id', userId)
+          .eq('recipe_id', recipeId);
+    } catch (e, st) {
+      AppSupabaseClient.logError('removeFavorite ("$recipeId")', e, st);
+      rethrow;
+    }
   }
 
   Future<bool> isFavorited(String recipeId) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return false;
 
-    final response = await _client
-        .from(AppConstants.favoriteRecipesTable)
-        .select('id')
-        .eq('user_id', userId)
-        .eq('recipe_id', recipeId)
-        .maybeSingle();
+    try {
+      final response = await _client
+          .from(AppConstants.favoriteRecipesTable)
+          .select('id')
+          .eq('user_id', userId)
+          .eq('recipe_id', recipeId)
+          .maybeSingle();
 
-    return response != null;
+      return response != null;
+    } catch (e, st) {
+      AppSupabaseClient.logError('isFavorited ("$recipeId")', e, st);
+      return false;
+    }
   }
 }

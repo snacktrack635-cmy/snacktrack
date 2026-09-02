@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/shopping_list_item.dart';
 import '../../../data/repositories/shopping_list_repository.dart';
@@ -43,7 +44,8 @@ class ShoppingListController extends StateNotifier<ShoppingListState> {
     try {
       final items = await _repository.getItems();
       state = state.copyWith(items: items, isLoading: false);
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [ShoppingListController.loadItems] Error: $e\n$st');
       state = state.copyWith(
         isLoading: false,
         errorMessage: 'Failed to load shopping list: $e',
@@ -55,7 +57,8 @@ class ShoppingListController extends StateNotifier<ShoppingListState> {
     try {
       final newItem = await _repository.addItem(item);
       state = state.copyWith(items: [newItem, ...state.items]);
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [ShoppingListController.addItem] Error: $e\n$st');
       state = state.copyWith(errorMessage: 'Failed to add shopping list item: $e');
     }
   }
@@ -70,7 +73,8 @@ class ShoppingListController extends StateNotifier<ShoppingListState> {
         return i;
       }).toList();
       state = state.copyWith(items: updated);
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [ShoppingListController.toggleChecked] Error: $e\n$st');
       state = state.copyWith(errorMessage: 'Failed to update item: $e');
     }
   }
@@ -81,7 +85,8 @@ class ShoppingListController extends StateNotifier<ShoppingListState> {
       state = state.copyWith(
         items: state.items.where((i) => i.id != itemId).toList(),
       );
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [ShoppingListController.deleteItem] Error: $e\n$st');
       state = state.copyWith(errorMessage: 'Failed to delete item: $e');
     }
   }
@@ -92,7 +97,8 @@ class ShoppingListController extends StateNotifier<ShoppingListState> {
       state = state.copyWith(
         items: state.items.where((i) => !i.isChecked).toList(),
       );
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [ShoppingListController.clearCompleted] Error: $e\n$st');
       state = state.copyWith(errorMessage: 'Failed to clear completed items: $e');
     }
   }

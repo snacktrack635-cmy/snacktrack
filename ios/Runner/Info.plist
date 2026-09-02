@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>SnackTrack requires camera access to scan product barcodes and read expiry date labels.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>SnackTrack requires photo library access to upload or scan food item images and labels.</string>
 </dict>
 </plist>

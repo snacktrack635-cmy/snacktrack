@@ -2,6 +2,7 @@ import 'package:csv/csv.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/network/supabase_client.dart';
 import '../models/shopping_list_item.dart';
 
 class ShoppingListRepository {
@@ -13,14 +14,19 @@ class ShoppingListRepository {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return [];
 
-    final response = await _client
-        .from(AppConstants.shoppingListItemsTable)
-        .select()
-        .eq('user_id', userId)
-        .order('is_checked', ascending: true)
-        .order('created_at', ascending: false);
+    try {
+      final response = await _client
+          .from(AppConstants.shoppingListItemsTable)
+          .select()
+          .eq('user_id', userId)
+          .order('is_checked', ascending: true)
+          .order('created_at', ascending: false);
 
-    return (response as List).map((json) => ShoppingListItem.fromJson(json)).toList();
+      return (response as List).map((json) => ShoppingListItem.fromJson(json)).toList();
+    } catch (e, st) {
+      AppSupabaseClient.logError('ShoppingList.getItems', e, st);
+      rethrow;
+    }
   }
 
   Future<ShoppingListItem> addItem(ShoppingListItem item) async {
@@ -29,49 +35,74 @@ class ShoppingListRepository {
     if (userId != null) data['user_id'] = userId;
     data.remove('id');
 
-    final response = await _client
-        .from(AppConstants.shoppingListItemsTable)
-        .insert(data)
-        .select()
-        .single();
+    try {
+      final response = await _client
+          .from(AppConstants.shoppingListItemsTable)
+          .insert(data)
+          .select()
+          .single();
 
-    return ShoppingListItem.fromJson(response);
+      return ShoppingListItem.fromJson(response);
+    } catch (e, st) {
+      AppSupabaseClient.logError('ShoppingList.addItem ("${item.name}")', e, st);
+      rethrow;
+    }
   }
 
   Future<ShoppingListItem> updateItem(ShoppingListItem item) async {
-    final response = await _client
-        .from(AppConstants.shoppingListItemsTable)
-        .update(item.toJson())
-        .eq('id', item.id)
-        .select()
-        .single();
+    try {
+      final response = await _client
+          .from(AppConstants.shoppingListItemsTable)
+          .update(item.toJson())
+          .eq('id', item.id)
+          .select()
+          .single();
 
-    return ShoppingListItem.fromJson(response);
+      return ShoppingListItem.fromJson(response);
+    } catch (e, st) {
+      AppSupabaseClient.logError('ShoppingList.updateItem ("${item.id}")', e, st);
+      rethrow;
+    }
   }
 
   Future<void> toggleChecked(String itemId, bool isChecked) async {
-    await _client
-        .from(AppConstants.shoppingListItemsTable)
-        .update({'is_checked': isChecked})
-        .eq('id', itemId);
+    try {
+      await _client
+          .from(AppConstants.shoppingListItemsTable)
+          .update({'is_checked': isChecked})
+          .eq('id', itemId);
+    } catch (e, st) {
+      AppSupabaseClient.logError('ShoppingList.toggleChecked ("$itemId")', e, st);
+      rethrow;
+    }
   }
 
   Future<void> deleteItem(String itemId) async {
-    await _client
-        .from(AppConstants.shoppingListItemsTable)
-        .delete()
-        .eq('id', itemId);
+    try {
+      await _client
+          .from(AppConstants.shoppingListItemsTable)
+          .delete()
+          .eq('id', itemId);
+    } catch (e, st) {
+      AppSupabaseClient.logError('ShoppingList.deleteItem ("$itemId")', e, st);
+      rethrow;
+    }
   }
 
   Future<void> clearCompleted() async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
 
-    await _client
-        .from(AppConstants.shoppingListItemsTable)
-        .delete()
-        .eq('user_id', userId)
-        .eq('is_checked', true);
+    try {
+      await _client
+          .from(AppConstants.shoppingListItemsTable)
+          .delete()
+          .eq('user_id', userId)
+          .eq('is_checked', true);
+    } catch (e, st) {
+      AppSupabaseClient.logError('ShoppingList.clearCompleted', e, st);
+      rethrow;
+    }
   }
 
   /// Export shopping list as CSV format and share via native share sheet
