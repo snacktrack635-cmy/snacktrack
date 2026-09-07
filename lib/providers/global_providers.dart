@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/network/supabase_client.dart';
+import '../core/services/gemini_service.dart';
 import '../data/datasources/edge_functions_ds.dart';
 import '../data/datasources/supabase_pantry_ds.dart';
 import '../data/datasources/supabase_recipe_ds.dart';
@@ -59,3 +60,14 @@ final subscriptionRepositoryProvider = Provider<SubscriptionRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
   return SubscriptionRepository(client);
 });
+
+// --- Services ---
+final geminiServiceProvider = Provider<GeminiService>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  const directApiKey = String.fromEnvironment('GEMINI_API_KEY');
+  return GeminiService(
+    supabaseClient: client,
+    directApiKey: directApiKey.isNotEmpty ? directApiKey : null,
+  );
+});
+

@@ -91,4 +91,39 @@ class EdgeFunctionsDataSource {
       return 1;
     }
   }
+
+  /// Calls the Supabase Edge Function to identify a food item and estimate expiry date via Gemini
+  Future<Map<String, dynamic>> scanFoodItemWithAi({
+    required String imageBase64,
+    String mimeType = 'image/jpeg',
+  }) async {
+    try {
+      final response = await _client.functions.invoke(
+        AppConstants.scanFoodItemFunction,
+        body: {
+          'image': imageBase64,
+          'mime_type': mimeType,
+          'mode': 'vision_scan',
+        },
+      );
+
+      if (response.status == 429) {
+        debugPrint('⚠️ [Supabase Edge Function: ${AppConstants.scanFoodItemFunction}] HTTP 429 - Quota exceeded.');
+        throw const QuotaExceededException('Monthly AI food scan quota exceeded. Please upgrade your subscription.');
+      }
+
+      if (response.status != 200) {
+        final errorMsg = response.data?['error'] ?? 'AI food scan failed.';
+        debugPrint('❌ [Supabase Edge Function: ${AppConstants.scanFoodItemFunction}] HTTP ${response.status}: $errorMsg');
+        throw ServerException(errorMsg.toString(), code: response.status.toString());
+      }
+
+      return response.data as Map<String, dynamic>;
+    } catch (e, st) {
+      AppSupabaseClient.logError('EdgeFunction.scanFoodItemWithAi', e, st);
+      if (e is AppException) rethrow;
+      throw ServerException(e.toString());
+    }
+  }
 }
+

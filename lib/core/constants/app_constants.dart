@@ -19,8 +19,13 @@ class AppConstants {
 
   // Supabase Edge Function Names
   static const String generateRecipeFunction = 'generate-recipe';
+  static const String scanFoodItemFunction = 'scan-food-item';
   static const String stripeWebhookFunction = 'stripe-webhook';
   static const String incrementSessionFunction = 'increment-session';
+
+  // Gemini Model & Configuration
+  static const String geminiDefaultModel = 'gemini-1.5-flash';
+  static const String geminiApiKeyEnv = 'GEMINI_API_KEY';
 
   // Expiry heuristic threshold (days)
   static const int expiringSoonDaysThreshold = 3;

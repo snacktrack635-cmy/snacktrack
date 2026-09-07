@@ -88,6 +88,11 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
             tooltip: 'Scan Expiry Date Label',
             onPressed: () => context.push('/scan/photo'),
           ),
+          IconButton(
+            icon: const Icon(Icons.auto_awesome, color: AppColors.primary),
+            tooltip: 'Scan Food Item with Gemini AI',
+            onPressed: () => context.push('/scan/ai'),
+          ),
         ],
       ),
       body: Stack(
@@ -111,7 +116,7 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
             ),
           ),
 
-          // Bottom Bar for Manual Entry
+          // Bottom Bar for Actions
           Positioned(
             bottom: 24,
             left: 20,
@@ -146,6 +151,15 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
                       ],
                     ),
                   ),
+                AppButton(
+                  label: 'Take Photo',
+                  icon: Icons.auto_awesome,
+                  width: double.infinity,
+                  onPressed: () {
+                    context.push('/scan/ai');
+                  },
+                ),
+                const SizedBox(height: 8),
                 AppButton(
                   label: 'Add Manually Without Barcode',
                   icon: Icons.edit_note_rounded,

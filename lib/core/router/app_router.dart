@@ -7,6 +7,7 @@ import '../../features/pantry/presentation/screens/pantry_list_screen.dart';
 import '../../features/recipes/presentation/screens/expiring_soon_recipes_screen.dart';
 import '../../features/recipes/presentation/screens/recipe_detail_screen.dart';
 import '../../features/recipes/presentation/screens/recipe_list_screen.dart';
+import '../../features/scanning/presentation/screens/ai_food_scan_screen.dart';
 import '../../features/scanning/presentation/screens/barcode_scan_screen.dart';
 import '../../features/scanning/presentation/screens/photo_scan_screen.dart';
 import '../../features/shopping_list/presentation/screens/shopping_list_screen.dart';
@@ -59,6 +60,11 @@ final appRouter = GoRouter(
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const PhotoScanScreen(),
     ),
+    GoRoute(
+      path: '/scan/ai',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const AiFoodScanScreen(),
+    ),
 
     // Item Review / Edit Screen
     GoRoute(
@@ -73,6 +79,10 @@ final appRouter = GoRouter(
           initialImageUrl: extra?['imageUrl'] as String?,
           initialExpiryDate: extra?['expiryDate'] as DateTime?,
           initialExpirySource: extra?['expirySource'] as String? ?? 'predicted',
+          initialQuantity: (extra?['quantity'] as num?)?.toDouble(),
+          initialUnit: extra?['unit'] as String?,
+          freshnessNotes: extra?['freshnessNotes'] as String?,
+          suggestedStorage: extra?['suggestedStorage'] as String?,
         );
       },
     ),

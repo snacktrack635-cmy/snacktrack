@@ -17,6 +17,10 @@ class ItemScanScreen extends ConsumerStatefulWidget {
   final String? initialImageUrl;
   final DateTime? initialExpiryDate;
   final String initialExpirySource;
+  final double? initialQuantity;
+  final String? initialUnit;
+  final String? freshnessNotes;
+  final String? suggestedStorage;
 
   const ItemScanScreen({
     super.key,
@@ -26,6 +30,10 @@ class ItemScanScreen extends ConsumerStatefulWidget {
     this.initialImageUrl,
     this.initialExpiryDate,
     this.initialExpirySource = 'predicted',
+    this.initialQuantity,
+    this.initialUnit,
+    this.freshnessNotes,
+    this.suggestedStorage,
   });
 
   @override
@@ -45,8 +53,10 @@ class _ItemScanScreenState extends ConsumerState<ItemScanScreen> {
     super.initState();
     _nameController = TextEditingController(text: widget.initialName ?? '');
     _categoryController = TextEditingController(text: widget.initialCategory ?? '');
-    _quantityController = TextEditingController(text: '1');
-    _unitController = TextEditingController(text: 'pcs');
+    _quantityController = TextEditingController(
+      text: widget.initialQuantity != null ? widget.initialQuantity!.toStringAsFixed(widget.initialQuantity! % 1 == 0 ? 0 : 1) : '1',
+    );
+    _unitController = TextEditingController(text: widget.initialUnit ?? 'pcs');
     _selectedExpiryDate = widget.initialExpiryDate;
     _expirySource = widget.initialExpirySource;
 
@@ -199,16 +209,24 @@ class _ItemScanScreenState extends ConsumerState<ItemScanScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Expiry Date',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Row(
+                          children: [
+                            if (effectiveSource == 'ai_predicted') ...[
+                              const Icon(Icons.auto_awesome, color: AppColors.primary, size: 18),
+                              const SizedBox(width: 6),
+                            ],
+                            const Text(
+                              'Expiry Date',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
                         ExpiryBadge(
                           expiryDate: effectiveExpiryDate,
-                          expirySource: effectiveSource,
+                          expirySource: effectiveSource == 'ai_predicted' ? 'Gemini AI' : effectiveSource,
                         ),
                       ],
                     ),
@@ -218,13 +236,68 @@ class _ItemScanScreenState extends ConsumerState<ItemScanScreen> {
                           ? 'Estimated: ${DateFormatter.formatDate(effectiveExpiryDate)}'
                           : 'No expiry date set',
                       style: const TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondaryLight,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimaryLight,
                       ),
                     ),
+
+                    // AI Freshness & Storage Insights
+                    if (widget.freshnessNotes != null || widget.suggestedStorage != null) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.07),
+                          borderRadius: AppSpacing.borderRadiusMd,
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (widget.freshnessNotes != null) ...[
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.visibility_outlined, size: 15, color: AppColors.primary),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      widget.freshnessNotes!,
+                                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondaryLight),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                            if (widget.suggestedStorage != null) ...[
+                              const SizedBox(height: 4),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.inventory_2_outlined, size: 15, color: AppColors.primary),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'Recommended: Store in ${widget.suggestedStorage}',
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: AppSpacing.md),
                     AppButton(
-                      label: 'Change Expiry Date',
+                      label: effectiveSource == 'ai_predicted'
+                          ? 'Edit Expiry Date Manually'
+                          : 'Change Expiry Date',
                       variant: AppButtonVariant.outlined,
                       icon: Icons.calendar_month_rounded,
                       onPressed: _pickDate,

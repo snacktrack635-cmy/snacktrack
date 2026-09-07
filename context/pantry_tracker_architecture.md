@@ -1,6 +1,6 @@
 # Pantry Tracker — Architecture & Structure
 
-**Stack:** Flutter (Riverpod) · Supabase (Postgres, Auth, Storage, Edge Functions) · Google Gemini (recipe generation) · Stripe (subscriptions)
+**Stack:** Flutter (Riverpod) · Supabase (Postgres, Auth, Storage, Edge Functions) · Google Gemini (recipe generation, AI food item vision & expiry prediction) · Stripe (subscriptions)
 
 ---
 
@@ -30,20 +30,21 @@ The schema below is store-agnostic (a `subscriptions` table keyed by user + prov
 │   Supabase Postgres      │◄──────►│  Row Level Security   │
 │   (pantry, recipes,      │        │  per-user isolation   │
 │    shopping list, subs)  │        └──────────────────────┘
-└───────────┬──────────────┘
             │
             ▼
-┌─────────────────────────┐        ┌──────────────────────┐
-│  Supabase Edge Functions │───────►│  Google Gemini API    │
-│  (Deno) — business logic │        │  (recipe generation)  │
-│  recipe cache lookup,    │        └──────────────────────┘
-│  expiry heuristics,      │        ┌──────────────────────┐
-│  Stripe webhooks,        │───────►│  Open Food Facts API  │
-│  usage/quota checks      │        │  (barcode → product)  │
-└──────────────────────────┘        └──────────────────────┘
+┌─────────────────────────┐        ┌──────────────────────────────────┐
+│  Supabase Edge Functions │───────►│  Google Gemini API               │
+│  (Deno) — business logic │        │  - recipe generation             │
+│  recipe cache lookup,    │        │  - multimodal food item vision   │
+│  expiry heuristics,      │        │  - dynamic shelf-life estimation │
+│  Stripe webhooks,        │        └──────────────────────────────────┘
+│  usage/quota checks      │        ┌──────────────────────────────────┐
+└──────────────────────────┘───────►│  Open Food Facts API             │
+                                    │  (barcode → product)             │
+                                    └──────────────────────────────────┘
 ```
 
-**Why Edge Functions, not client-side calls:** the Gemini API key, recipe-dedup logic, and quota enforcement must never live on-device (users can decompile/intercept an APK and bypass tier limits or drain your API key). All AI calls, Stripe webhook handling, and quota checks go through Edge Functions.
+**Why Edge Functions, not client-side calls:** the Gemini API key, recipe-dedup logic, and quota enforcement must never live on-device (users can decompile/intercept an APK and bypass tier limits or drain your API key). All AI calls (recipe generation and multimodal food item scanning/expiry prediction), Stripe webhook handling, and quota checks go through Edge Functions (or authenticated Gemini services).
 
 ---
 
@@ -59,12 +60,15 @@ lib/
 │   ├── theme/
 │   ├── utils/                    # date formatting, debouncers, etc.
 │   ├── errors/                   # Failure types, exception mapping
+│   ├── services/                 # AI & infrastructure services
+│   │   └── gemini_service.dart   # Gemini multimodal food scanner & shelf-life predictor
 │   └── network/
 │       └── supabase_client.dart  # singleton client + interceptor-like helpers
 │
 ├── data/
 │   ├── models/                   # freezed + json_serializable models
 │   │   ├── pantry_item.dart
+│   │   ├── ai_food_scan_result.dart # Gemini food scan & expiry detection model
 │   │   ├── recipe.dart
 │   │   ├── shopping_list_item.dart
 │   │   ├── subscription.dart
@@ -78,7 +82,7 @@ lib/
 │   └── datasources/
 │       ├── supabase_pantry_ds.dart
 │       ├── supabase_recipe_ds.dart
-│       └── edge_functions_ds.dart   # wraps functions.invoke() calls
+│       └── edge_functions_ds.dart   # wraps functions.invoke() calls (recipe gen, AI food scan)
 │
 ├── features/
 │   ├── onboarding/
@@ -87,7 +91,7 @@ lib/
 │   ├── pantry/
 │   │   ├── presentation/
 │   │   │   ├── screens/pantry_list_screen.dart
-│   │   │   ├── screens/item_scan_screen.dart
+│   │   │   ├── screens/item_scan_screen.dart # manual review & edit of scanned food item & expiry
 │   │   │   └── widgets/pantry_item_card.dart
 │   │   └── application/
 │   │       ├── pantry_controller.dart
@@ -95,7 +99,8 @@ lib/
 │   ├── scanning/
 │   │   ├── presentation/screens/barcode_scan_screen.dart
 │   │   ├── presentation/screens/photo_scan_screen.dart
-│   │   └── application/scan_controller.dart
+│   │   ├── presentation/screens/ai_food_scan_screen.dart # Camera/photo capture for Gemini AI food scanning
+│   │   └── application/scan_controller.dart              # manages barcode, label OCR & Gemini AI scan states
 │   ├── recipes/
 │   │   ├── presentation/
 │   │   │   ├── screens/recipe_list_screen.dart
@@ -107,17 +112,17 @@ lib/
 │   ├── shopping_list/
 │   │   ├── presentation/
 │   │   └── application/shopping_list_controller.dart
-│   └── subscription/
-│       ├── presentation/screens/paywall_screen.dart
-│       └── application/subscription_controller.dart
+│   ├── subscription/
+│   │   ├── presentation/screens/paywall_screen.dart
+│   │   └── application/subscription_controller.dart
 │
 ├── providers/
-│   └── global_providers.dart     # riverpod providers wiring repos → controllers
+│   └── global_providers.dart     # riverpod providers wiring repos & services → controllers
 │
 └── widgets/                      # shared/dumb widgets (buttons, sheets, loaders)
 ```
 
-**Why this shape:** feature folders keep each vertical slice self-contained (easy to hand off or delete), `data/` is the only layer that knows about Supabase, and controllers never talk to the network directly — they go through repositories. This keeps widget rebuilds cheap and testable.
+**Why this shape:** feature folders keep each vertical slice self-contained (easy to hand off or delete), `data/` is the only layer that knows about Supabase, and controllers never talk to the network directly — they go through repositories and core services. This keeps widget rebuilds cheap and testable.
 
 ---
 
@@ -126,6 +131,7 @@ lib/
 | Concern | Approach |
 |---|---|
 | Scanning UI freeze | Run OCR/ML Kit barcode + label detection in an `Isolate` via `compute()`; camera stream never blocks the UI thread |
+| AI Food Scanning (Gemini Vision) | Compress photo on-device (<500KB, max dimension 1024px via `flutter_image_compress`) before transmission; enforce strict JSON response schema for deterministic identification and expiry estimation in ~1-2s |
 | Pantry list with many items | Paginate via Supabase `.range()`, use `ListView.builder` + `AutomaticKeepAlive` off, cache images with `cached_network_image` |
 | Recipe generation latency | Always check the `recipes` cache table **first** (indexed, normalized-name lookup) before calling Gemini — cache hit returns in ~50–100ms vs ~2–4s for an LLM call |
 | Riverpod rebuild storms | Scope providers with `.family`/`.autoDispose`, use `select()` on watched state so a single item update doesn't rebuild the whole list |
@@ -184,7 +190,7 @@ create table public.pantry_items (
   quantity numeric default 1,
   unit text,
   expiry_date date,
-  expiry_source text default 'predicted', -- predicted | manual | label_ocr
+  expiry_source text default 'predicted', -- predicted | manual | label_ocr | ai_predicted
   image_url text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -297,23 +303,72 @@ Same pipeline is reused for **"about to expire" recipes**: instead of one primar
 
 ---
 
-## 6. Barcode Scanning & Expiry Prediction
+## 6. Scanning Modes & Expiry Prediction (Barcode, Label OCR & Gemini AI)
 
-- **Barcode scanning:** `mobile_scanner` package (ML Kit under the hood, on-device, fast, no network round-trip for the scan itself). On successful decode, call Open Food Facts API (free, no key) for product name/category; fall back to manual entry if not found.
-- **Photo/label scanning:** on-device text recognition (`google_mlkit_text_recognition`) to pull a printed expiry date off packaging when visible; if no date is detected, fall back to a **category-based heuristic table** stored in Postgres (e.g. dairy → 7 days, canned goods → 365 days) seeded by you and refined over time — cheap, deterministic, no LLM call needed for this part.
-- Both paths write `expiry_source` so the UI can show "predicted" vs "detected" vs "manual" and let the user override at any time (per the spec).
+The app provides three integrated scanning modalities to capture pantry items:
+
+```
+                  ┌───────────────────────────────┐
+                  │    User Camera / Capture      │
+                  └───────────────┬───────────────┘
+                                  │
+          ┌───────────────────────┼───────────────────────┐
+          ▼                       ▼                       ▼
+┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
+│ Barcode Scan     │    │ Printed Label    │    │ Gemini AI Food   │
+│ (mobile_scanner) │    │ OCR (ML Kit)     │    │ Item Scanner     │
+└─────────┬────────┘    └─────────┬────────┘    └─────────┬────────┘
+          │                       │                       │
+          ▼                       ▼                       ▼
+   Open Food Facts        Regex Date Parser       Gemini 1.5 Flash Vision
+   (name, category)       (EXP: DD/MM/YY)         - Identifies food item
+          │                       │               - Food category
+          │                       │               - Approximate expiry date
+          │                       │               - Storage recommendation
+          │                       │               - Freshness & quantity
+          └───────────────────────┼───────────────────────┘
+                                  ▼
+                   ┌──────────────────────────────┐
+                   │    Item Review & Edit UI     │
+                   │    (item_scan_screen.dart)   │
+                   │ - Name & category pre-filled │
+                   │ - Expiry date pre-filled     │
+                   │ - User can edit all fields   │
+                   │   manually before saving     │
+                   └──────────────┬───────────────┘
+                                  ▼
+                     Save to pantry_items table
+                  (expiry_source: 'ai_predicted'
+                   | 'label_ocr' | 'predicted' | 'manual')
+```
+
+1. **Barcode Scanning:** `mobile_scanner` package (ML Kit under the hood, on-device, fast, no network round-trip for the scan itself). On successful decode, calls Open Food Facts API for product name/category; falls back to manual entry if not found.
+2. **Photo/Label Scanning (OCR):** on-device text recognition (`google_mlkit_text_recognition`) to pull printed expiry dates off packaging when visible; if no date is detected, falls back to a category-based heuristic table stored in Postgres or Gemini estimation.
+3. **Gemini AI Multimodal Food Item Scanning:**
+   - **Use Case:** Fresh produce, bulk items, leftovers, baked goods, or unpackaged groceries without barcodes or printed dates.
+   - **Pipeline:** Camera photo or gallery image is compressed on-device (<500KB) and passed to `GeminiService` (via Edge Function `scan-food-item` with quota gating, or direct API fallback).
+   - **Multimodal Model Output:** Gemini (`gemini-1.5-flash`) inspects visual features (ripeness, bruising, texture, packaging) and outputs strict JSON:
+     - `name`: identified food item name (e.g., "Honeycrisp Apples", "Sourdough Bread").
+     - `category`: standard category (e.g., "Produce", "Bakery", "Dairy").
+     - `days_until_expiry`: integer estimate based on item type and visible condition.
+     - `confidence`: detection confidence score (0.0–1.0).
+     - `freshness_notes`: visual observations (e.g. "Firm with green skin, early ripeness").
+     - `suggested_storage`: recommended storage method (e.g. "pantry" vs "refrigerator").
+   - **Manual Override:** The user is immediately transitioned to `ItemScanScreen` where all AI-predicted attributes are populated. The user can review, edit the name/category/quantity, and manually adjust the expiry date via a date picker before saving to their pantry.
+   - **Provenance Tracking:** Written with `expiry_source: 'ai_predicted'`. If the user manually changes the date, it flips to `'manual'`.
 
 ---
 
 ## 7. Subscription Tiers & Quota Enforcement
 
-| Tier | Scan limit | Scan mode | Recipe generations/month |
+| Tier | Scan limit (Barcode/OCR/AI) | Scan mode | Recipe generations/month |
 |---|---|---|---|
 | Free | 3/month | single-item only | e.g. 5 |
-| Plus | higher cap | batch scanning unlocked | e.g. 30 |
+| Plus | higher cap (e.g. 30/mo) | batch scanning unlocked | e.g. 30 |
 | Pro | unlimited | batch scanning | highest / unlimited |
 
 - Limits live in a single `core/constants/tier_limits.dart` on the client (for instant UI feedback / disabling buttons) **and** are re-checked server-side in the Edge Function before any scan/generation is processed — client-side checks are UX only, never trusted for enforcement.
+- `usage_counters.scans_used` increments on each barcode lookup, OCR operation, or Gemini AI food scan.
 - `usage_counters` resets on a scheduled Postgres cron job (`pg_cron`) or a scheduled Edge Function at the start of each billing period.
 - Stripe webhook (`checkout.session.completed`, `customer.subscription.updated/deleted`) hits an Edge Function that upserts `subscriptions` — this is the single source of truth the app reads to gate features.
 
@@ -345,12 +400,13 @@ Increment `login_count` via an Edge Function called once per app session start (
 3. Pantry CRUD + manual entry (get the core loop working before adding AI)
 4. Barcode scanning + Open Food Facts lookup
 5. Expiry heuristic table + label OCR fallback
-6. Recipe generation Edge Function + cache table (single-item first)
-7. Expiring-soon recipe variant
-8. Favorites (JSON snapshot)
-9. Shopping list + export (CSV/PDF share sheet)
-10. Subscription tiers, quota enforcement, Stripe integration
-11. Performance pass: profiling with Flutter DevTools, list virtualization checks, isolate audit
+6. **Gemini AI service + AI food item scanning with editable manual expiry review**
+7. Recipe generation Edge Function + cache table (single-item first)
+8. Expiring-soon recipe variant
+9. Favorites (JSON snapshot)
+10. Shopping list + export (CSV/PDF share sheet)
+11. Subscription tiers, quota enforcement, Stripe integration
+12. Performance pass: profiling with Flutter DevTools, list virtualization checks, isolate audit
 
 ---
 
@@ -366,8 +422,9 @@ dependencies:
   json_annotation:
   mobile_scanner:                 # barcode
   google_mlkit_text_recognition:  # label OCR
+  image_picker:                   # camera photo capture & gallery selection for AI scanning
   cached_network_image:
-  flutter_image_compress:
+  flutter_image_compress:         # compress photos before sending to Gemini / storage
   share_plus:                     # shopping list export
   csv:                            # shopping list export format
 
