@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:snacktrack/data/models/pantry_item.dart';
-import 'package:snacktrack/data/models/recipe.dart';
 import 'package:snacktrack/features/recipes/application/recipe_generation_controller.dart';
 import '../../../helpers/mock_repositories.dart';
 

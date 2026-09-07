@@ -7,7 +7,6 @@ import 'package:snacktrack/features/pantry/application/pantry_controller.dart';
 import 'package:snacktrack/features/pantry/presentation/screens/pantry_list_screen.dart';
 import 'package:snacktrack/features/recipes/application/recipe_generation_controller.dart';
 import 'package:snacktrack/widgets/error_view.dart';
-import 'package:snacktrack/widgets/loading_view.dart';
 import '../../../helpers/mock_repositories.dart';
 
 void main() {

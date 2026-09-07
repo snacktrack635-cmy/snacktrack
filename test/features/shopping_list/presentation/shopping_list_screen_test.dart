@@ -5,7 +5,6 @@ import 'package:snacktrack/data/models/shopping_list_item.dart';
 import 'package:snacktrack/features/shopping_list/application/shopping_list_controller.dart';
 import 'package:snacktrack/features/shopping_list/presentation/screens/shopping_list_screen.dart';
 import 'package:snacktrack/widgets/error_view.dart';
-import 'package:snacktrack/widgets/loading_view.dart';
 import '../../../helpers/mock_repositories.dart';
 
 void main() {
