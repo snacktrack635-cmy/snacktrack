@@ -92,7 +92,7 @@ class PantryItemCard extends StatelessWidget {
               // Recipe Action Button
               IconButton(
                 icon: const Icon(
-                  Icons.auto_awesome_rounded,
+                  Icons.restaurant_menu,
                   color: AppColors.secondary,
                 ),
                 tooltip: 'Generate Recipe',

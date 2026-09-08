@@ -21,6 +21,29 @@ class AppSupabaseClient {
       // ignore: deprecated_member_use
       anonKey: anonKey,
     );
+
+    // Automatically establish session for RLS-protected tables
+    await ensureAuthenticated();
+  }
+
+  /// Ensures an active user session exists so RLS-protected tables (like pantry_items)
+  /// can be queried and updated with a valid auth.uid().
+  static Future<void> ensureAuthenticated() async {
+    try {
+      if (client.auth.currentUser == null) {
+        await client.auth.signInAnonymously();
+        debugPrint('✅ [Supabase Auth] Anonymous session created: ${client.auth.currentUser?.id}');
+      }
+
+      final user = client.auth.currentUser;
+      if (user != null) {
+        // Ensure a profile record exists for foreign-key constraints
+        await client.from('profiles').upsert({'id': user.id}).select().maybeSingle();
+      }
+    } catch (e, st) {
+      debugPrint('⚠️ [Supabase Auth] Could not ensure authenticated session: $e');
+      logError('ensureAuthenticated', e, st);
+    }
   }
 
   /// Convenience wrapper for Edge Function invocations with detailed error printing

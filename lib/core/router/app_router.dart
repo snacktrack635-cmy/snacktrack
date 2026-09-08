@@ -93,10 +93,16 @@ final appRouter = GoRouter(
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) {
         Recipe? recipe;
+        String? ingredientName;
         if (state.extra is Recipe) {
           recipe = state.extra as Recipe;
+        } else if (state.extra is String) {
+          ingredientName = state.extra as String;
         }
-        return RecipeDetailScreen(initialRecipe: recipe);
+        return RecipeDetailScreen(
+          initialRecipe: recipe,
+          fallbackIngredientName: ingredientName,
+        );
       },
     ),
     GoRoute(

@@ -13,15 +13,22 @@ class EdgeFunctionsDataSource {
   Future<Recipe> generateRecipe({
     required String primaryIngredient,
     List<String> availablePantryItems = const [],
+    String? pantryItemId,
   }) async {
     try {
+      final body = <String, dynamic>{
+        'primary_ingredient': primaryIngredient,
+        'pantry_items': availablePantryItems,
+        'mode': 'single_item',
+      };
+      if (pantryItemId != null) {
+        body['pantryItemId'] = pantryItemId;
+        body['pantry_item_id'] = pantryItemId;
+      }
+
       final response = await _client.functions.invoke(
         AppConstants.generateRecipeFunction,
-        body: {
-          'primary_ingredient': primaryIngredient,
-          'pantry_items': availablePantryItems,
-          'mode': 'single_item',
-        },
+        body: body,
       );
 
       if (response.status == 429) {
@@ -36,7 +43,10 @@ class EdgeFunctionsDataSource {
       }
 
       final data = response.data as Map<String, dynamic>;
-      return Recipe.fromJson(data);
+      final recipeData = (data['recipe'] is Map<String, dynamic>)
+          ? data['recipe'] as Map<String, dynamic>
+          : data;
+      return Recipe.fromJson(recipeData);
     } catch (e, st) {
       AppSupabaseClient.logError('EdgeFunction.generateRecipe ($primaryIngredient)', e, st);
       if (e is AppException) rethrow;
@@ -68,7 +78,10 @@ class EdgeFunctionsDataSource {
       }
 
       final data = response.data as Map<String, dynamic>;
-      return Recipe.fromJson(data);
+      final recipeData = (data['recipe'] is Map<String, dynamic>)
+          ? data['recipe'] as Map<String, dynamic>
+          : data;
+      return Recipe.fromJson(recipeData);
     } catch (e, st) {
       AppSupabaseClient.logError('EdgeFunction.generateExpiringSoonRecipe', e, st);
       if (e is AppException) rethrow;

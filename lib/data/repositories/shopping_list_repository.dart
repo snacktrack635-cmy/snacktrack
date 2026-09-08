@@ -32,7 +32,11 @@ class ShoppingListRepository {
   Future<ShoppingListItem> addItem(ShoppingListItem item) async {
     final userId = _client.auth.currentUser?.id;
     final data = item.toJson();
-    if (userId != null) data['user_id'] = userId;
+    if (userId != null && userId.isNotEmpty) {
+      data['user_id'] = userId;
+    } else if (data['user_id'] == '') {
+      data.remove('user_id');
+    }
     data.remove('id');
 
     try {

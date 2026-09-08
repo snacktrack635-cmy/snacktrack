@@ -68,7 +68,11 @@ class SupabasePantryDataSource {
   Future<PantryItem> addPantryItem(PantryItem item) async {
     final userId = _client.auth.currentUser?.id;
     final itemData = item.toJson();
-    if (userId != null) itemData['user_id'] = userId;
+    if (userId != null && userId.isNotEmpty) {
+      itemData['user_id'] = userId;
+    } else if (itemData['user_id'] == '') {
+      itemData.remove('user_id');
+    }
     itemData.remove('id'); // let Supabase generate UUID
 
     try {

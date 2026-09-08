@@ -207,7 +207,10 @@ class _PantryListScreenState extends ConsumerState<PantryListScreen> {
                           onGenerateRecipe: () {
                             ref
                                 .read(recipeGenerationControllerProvider.notifier)
-                                .generateRecipeForItem(item.name);
+                                .generateRecipeForItem(
+                                  item.name,
+                                  pantryItemId: item.id,
+                                );
                             context.push('/recipes/detail', extra: item.name);
                           },
                           onDelete: () {

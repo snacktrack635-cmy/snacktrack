@@ -15,6 +15,7 @@ class RecipeRepository {
   Future<Recipe> generateRecipe({
     required String primaryIngredient,
     List<String> availablePantryItems = const [],
+    String? pantryItemId,
   }) async {
     // 1. Try cache lookup first (indexed, normalized-name lookup: ~50-100ms)
     final normalized = primaryIngredient.trim().toLowerCase();
@@ -27,10 +28,12 @@ class RecipeRepository {
       return cached;
     }
 
-    // 2. Cache miss -> invoke Edge Function (runs Gemini + tier quota check + stores in cache)
+    // 2. Cache miss -> invoke Edge Function (runs Gemini recipe name generation,
+    // database check, creates full recipe and populates table if not found)
     return await _edgeFunctionsDataSource.generateRecipe(
       primaryIngredient: primaryIngredient,
       availablePantryItems: availablePantryItems,
+      pantryItemId: pantryItemId,
     );
   }
 

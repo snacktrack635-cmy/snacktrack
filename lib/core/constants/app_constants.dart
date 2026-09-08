@@ -24,7 +24,7 @@ class AppConstants {
   static const String incrementSessionFunction = 'increment-session';
 
   // Gemini Model & Configuration
-  static const String geminiDefaultModel = 'gemini-1.5-flash';
+  static const String geminiDefaultModel = 'gemini-3.6-flash';
   static const String geminiApiKeyEnv = 'GEMINI_API_KEY';
 
   // Expiry heuristic threshold (days)

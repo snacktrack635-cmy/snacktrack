@@ -7,6 +7,7 @@ import 'package:snacktrack/features/recipes/application/favorites_controller.dar
 import 'package:snacktrack/features/recipes/application/recipe_generation_controller.dart';
 import 'package:snacktrack/features/recipes/presentation/screens/recipe_detail_screen.dart';
 import 'package:snacktrack/features/shopping_list/application/shopping_list_controller.dart';
+import 'package:snacktrack/widgets/could_not_find_recipe_view.dart';
 import 'package:snacktrack/widgets/error_view.dart';
 import 'package:snacktrack/widgets/loading_view.dart';
 import '../../../helpers/mock_repositories.dart';
@@ -148,6 +149,38 @@ void main() {
       expect(find.text('Ingredients added to your shopping list!'), findsOneWidget);
       expect(shoppingRepo.items.length, equals(2));
       expect(shoppingRepo.items.any((i) => i.name == 'Lettuce'), isTrue);
+    });
+
+    testWidgets('displays CouldNotFindRecipeView when recipe is Untitled Recipe', (tester) async {
+      final untitledRecipe = Recipe(
+        id: 'r-empty',
+        name: 'Untitled Recipe',
+        ingredients: const [],
+        instructions: const [],
+        primaryIngredient: 'Apples',
+        createdAt: DateTime.now(),
+      );
+
+      await tester.pumpWidget(createTestWidget(initialRecipe: untitledRecipe));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CouldNotFindRecipeView), findsOneWidget);
+      expect(find.text('Could Not Find Recipe'), findsAtLeastNWidgets(1));
+      expect(find.textContaining('Apples'), findsOneWidget);
+      expect(find.text('Try Again'), findsOneWidget);
+      expect(find.text('Back to Pantry'), findsOneWidget);
+    });
+
+    testWidgets('displays CouldNotFindRecipeView when recipe is null and not generating', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(
+          forcedState: const RecipeGenerationState(isGenerating: false),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CouldNotFindRecipeView), findsOneWidget);
+      expect(find.text('Could Not Find Recipe'), findsAtLeastNWidgets(1));
     });
   });
 }

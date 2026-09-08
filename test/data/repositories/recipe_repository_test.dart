@@ -62,6 +62,7 @@ class StubEdgeFunctionsDataSource implements EdgeFunctionsDataSource {
   Future<Recipe> generateRecipe({
     required String primaryIngredient,
     List<String> availablePantryItems = const [],
+    String? pantryItemId,
   }) async {
     generateRecipeCalls++;
     if (throwQuota) throw const QuotaExceededException('Quota exceeded');

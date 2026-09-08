@@ -46,6 +46,11 @@ class Recipe {
   });
 
   factory Recipe.fromJson(Map<String, dynamic> json) {
+    // If the json is wrapped in a top-level "recipe" field from Edge Functions
+    if (json.containsKey('recipe') && json['recipe'] is Map<String, dynamic>) {
+      return Recipe.fromJson(json['recipe'] as Map<String, dynamic>);
+    }
+
     var rawIngredients = json['ingredients'];
     List<RecipeIngredient> parsedIngredients = [];
     if (rawIngredients is List) {

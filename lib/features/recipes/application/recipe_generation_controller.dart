@@ -21,12 +21,13 @@ class RecipeGenerationState {
   RecipeGenerationState copyWith({
     bool? isGenerating,
     Recipe? currentRecipe,
+    bool clearRecipe = false,
     String? errorMessage,
     bool? isQuotaExceeded,
   }) {
     return RecipeGenerationState(
       isGenerating: isGenerating ?? this.isGenerating,
-      currentRecipe: currentRecipe ?? this.currentRecipe,
+      currentRecipe: clearRecipe ? null : (currentRecipe ?? this.currentRecipe),
       errorMessage: errorMessage,
       isQuotaExceeded: isQuotaExceeded ?? this.isQuotaExceeded,
     );
@@ -44,8 +45,16 @@ class RecipeGenerationController extends StateNotifier<RecipeGenerationState> {
         _pantryRepository = pantryRepository,
         super(const RecipeGenerationState());
 
-  Future<void> generateRecipeForItem(String primaryIngredient) async {
-    state = state.copyWith(isGenerating: true, errorMessage: null, isQuotaExceeded: false);
+  Future<void> generateRecipeForItem(
+    String primaryIngredient, {
+    String? pantryItemId,
+  }) async {
+    state = state.copyWith(
+      isGenerating: true,
+      clearRecipe: true,
+      errorMessage: null,
+      isQuotaExceeded: false,
+    );
 
     try {
       // Fetch user's pantry items as context for secondary ingredients
@@ -58,6 +67,7 @@ class RecipeGenerationController extends StateNotifier<RecipeGenerationState> {
       final recipe = await _recipeRepository.generateRecipe(
         primaryIngredient: primaryIngredient,
         availablePantryItems: secondaryIngredients,
+        pantryItemId: pantryItemId,
       );
 
       state = state.copyWith(
@@ -76,7 +86,12 @@ class RecipeGenerationController extends StateNotifier<RecipeGenerationState> {
   }
 
   Future<void> generateExpiringSoonRecipe() async {
-    state = state.copyWith(isGenerating: true, errorMessage: null, isQuotaExceeded: false);
+    state = state.copyWith(
+      isGenerating: true,
+      clearRecipe: true,
+      errorMessage: null,
+      isQuotaExceeded: false,
+    );
 
     try {
       final expiringItems = await _pantryRepository.getExpiringSoonItems(daysThreshold: 3);

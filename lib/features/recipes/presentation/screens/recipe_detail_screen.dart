@@ -9,13 +9,31 @@ import 'package:snacktrack/features/recipes/application/favorites_controller.dar
 import 'package:snacktrack/features/recipes/application/recipe_generation_controller.dart';
 import 'package:snacktrack/features/shopping_list/application/shopping_list_controller.dart';
 import 'package:snacktrack/widgets/app_button.dart';
+import 'package:snacktrack/widgets/could_not_find_recipe_view.dart';
 import 'package:snacktrack/widgets/error_view.dart';
 import 'package:snacktrack/widgets/loading_view.dart';
 
 class RecipeDetailScreen extends ConsumerWidget {
   final Recipe? initialRecipe;
+  final String? fallbackIngredientName;
 
-  const RecipeDetailScreen({super.key, this.initialRecipe});
+  const RecipeDetailScreen({
+    super.key,
+    this.initialRecipe,
+    this.fallbackIngredientName,
+  });
+
+  bool _isCouldNotFindRecipe(Recipe? recipe) {
+    if (recipe == null) return true;
+    final name = recipe.name.trim().toLowerCase();
+    if (name.isEmpty || name == 'untitled recipe' || name == 'untitled') {
+      return true;
+    }
+    if (recipe.ingredients.isEmpty && recipe.instructions.isEmpty) {
+      return true;
+    }
+    return false;
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -59,10 +77,27 @@ class RecipeDetailScreen extends ConsumerWidget {
       );
     }
 
-    if (recipe == null) {
+    if (recipe == null || _isCouldNotFindRecipe(recipe)) {
+      final ingredient = recipe?.primaryIngredient ?? fallbackIngredientName;
       return Scaffold(
         appBar: AppBar(title: const Text('Recipe Details')),
-        body: const Center(child: Text('No recipe loaded.')),
+        body: CouldNotFindRecipeView(
+          ingredientName: ingredient,
+          onRetry: ingredient != null && ingredient.isNotEmpty
+              ? () {
+                  ref
+                      .read(recipeGenerationControllerProvider.notifier)
+                      .generateRecipeForItem(ingredient);
+                }
+              : null,
+          onBackToPantry: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/pantry');
+            }
+          },
+        ),
       );
     }
 

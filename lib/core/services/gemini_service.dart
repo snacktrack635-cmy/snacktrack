@@ -82,15 +82,22 @@ class GeminiService {
             }
           }
 
-          // If Edge Function is not deployed (404 / NOT_FOUND) or unreachable,
-          // provide a graceful fallback so the user can continue smoothly to the review screen
+          // Check if the Edge Function itself is not deployed on Supabase gateway
           final errorStr = edgeError.toString();
-          final isNotFound = errorStr.contains('404') ||
-              errorStr.contains('NOT_FOUND') ||
-              errorStr.contains('not found');
-          if (isNotFound) {
-            debugPrint('⚠️ [GeminiService] Edge function "${AppConstants.scanFoodItemFunction}" not deployed (404). Falling back to review item.');
+          final isFunctionRouteNotFound = errorStr.contains('Requested function was not found') ||
+              (errorStr.contains('NOT_FOUND') && !errorStr.contains('Gemini API'));
+          if (isFunctionRouteNotFound) {
+            debugPrint('⚠️ [GeminiService] Edge function "${AppConstants.scanFoodItemFunction}" not deployed on Supabase gateway. Falling back to review item.');
             return _generateVisualScanFallback(imagePath: imagePath ?? imageFile?.path);
+          }
+
+          if (edgeError is FunctionsHttpException) {
+            final details = edgeError.details;
+            final message = (details is Map && details['error'] != null)
+                ? details['error'].toString()
+                : (details?.toString() ?? edgeError.toString());
+            debugPrint('❌ [GeminiService] Edge Function execution error (${edgeError.status}): $message');
+            throw ServerException(message, code: edgeError.status.toString());
           }
 
           if (edgeError is AppException) rethrow;

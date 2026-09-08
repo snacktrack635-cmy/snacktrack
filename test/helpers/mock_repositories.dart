@@ -101,6 +101,7 @@ class FakeRecipeRepository implements RecipeRepository {
   Future<Recipe> generateRecipe({
     required String primaryIngredient,
     List<String> availablePantryItems = const [],
+    String? pantryItemId,
   }) async {
     if (throwQuotaOnGenerate) {
       throw const QuotaExceededException('Monthly recipe generation quota exceeded (429).');
@@ -396,6 +397,7 @@ class FakeEdgeFunctionsDataSource implements EdgeFunctionsDataSource {
   Future<Recipe> generateRecipe({
     required String primaryIngredient,
     List<String> availablePantryItems = const [],
+    String? pantryItemId,
   }) async {
     if (throwQuota) throw const QuotaExceededException('Quota exceeded');
     if (throwServer) throw const ServerException('Server error');

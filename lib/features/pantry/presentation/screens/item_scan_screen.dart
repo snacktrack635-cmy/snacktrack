@@ -226,7 +226,6 @@ class _ItemScanScreenState extends ConsumerState<ItemScanScreen> {
                         ),
                         ExpiryBadge(
                           expiryDate: effectiveExpiryDate,
-                          expirySource: effectiveSource == 'ai_predicted' ? 'Gemini AI' : effectiveSource,
                         ),
                       ],
                     ),

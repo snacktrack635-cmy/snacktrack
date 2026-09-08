@@ -86,6 +86,27 @@ void main() {
       expect(recipe.generationCount, equals(1));
     });
 
+    test('fromJson unwraps nested recipe object from Edge Function response', () {
+      final json = {
+        'recipe': {
+          'id': 'r-nested-1',
+          'name': 'Garlic Bread',
+          'ingredients': [
+            {'name': 'Baguette', 'quantity': '1 loaf'},
+            {'name': 'Garlic Butter', 'quantity': '50g'},
+          ],
+          'instructions': ['Slice and bake with butter.'],
+        },
+        'cacheHit': true,
+      };
+
+      final recipe = Recipe.fromJson(json);
+      expect(recipe.id, equals('r-nested-1'));
+      expect(recipe.name, equals('Garlic Bread'));
+      expect(recipe.ingredients.length, equals(2));
+      expect(recipe.instructions.first, equals('Slice and bake with butter.'));
+    });
+
     test('toJson serializes recipe correctly', () {
       final now = DateTime(2026, 9, 10);
       final recipe = Recipe(
