@@ -100,6 +100,21 @@ void main() {
       expect(find.text('Paywall Screen'), findsOneWidget);
     });
 
+    testWidgets('displays friendly message "Your monthly quota has been reached." when quota exceeded', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(
+          forcedState: const RecipeGenerationState(
+            errorMessage: 'Your monthly quota has been reached.',
+            isQuotaExceeded: true,
+          ),
+        ),
+      );
+
+      expect(find.byType(ErrorView), findsOneWidget);
+      expect(find.text('Your monthly quota has been reached.'), findsOneWidget);
+      expect(find.text('Upgrade Subscription'), findsOneWidget);
+    });
+
     testWidgets('displays recipe details, ingredients, and instructions when loaded', (tester) async {
       final recipe = Recipe(
         id: 'r-1',

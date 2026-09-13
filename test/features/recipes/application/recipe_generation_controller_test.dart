@@ -52,14 +52,27 @@ void main() {
       expect(controller.state.isQuotaExceeded, isFalse);
     });
 
-    test('generateRecipeForItem sets isQuotaExceeded on HTTP 429 quota failure', () async {
+    test('generateRecipeForItem sets isQuotaExceeded and friendly message on quota failure', () async {
       recipeRepository.throwQuotaOnGenerate = true;
 
       await controller.generateRecipeForItem('Steak');
 
       expect(controller.state.isGenerating, isFalse);
       expect(controller.state.currentRecipe, isNull);
-      expect(controller.state.errorMessage, isNotNull);
+      expect(controller.state.errorMessage, equals('Your monthly quota has been reached.'));
+      expect(controller.state.isQuotaExceeded, isTrue);
+    });
+
+    test('generateRecipeForItem handles ServerException wrapping FunctionsHttpException 403 quota_exceeded', () async {
+      recipeRepository.throwOnGenerate = true;
+      recipeRepository.errorMessage =
+          'FunctionsHttpException(status: 403, details: {error: quota_exceeded, message: Monthly recipe generation limit reached.}, reasonPhrase: Forbidden)';
+
+      await controller.generateRecipeForItem('Steak');
+
+      expect(controller.state.isGenerating, isFalse);
+      expect(controller.state.currentRecipe, isNull);
+      expect(controller.state.errorMessage, equals('Your monthly quota has been reached.'));
       expect(controller.state.isQuotaExceeded, isTrue);
     });
 
@@ -132,6 +145,29 @@ void main() {
 
       expect(controller.state.isGenerating, isFalse);
       expect(controller.state.currentRecipe, isNull);
+      expect(controller.state.errorMessage, equals('Your monthly quota has been reached.'));
+      expect(controller.state.isQuotaExceeded, isTrue);
+    });
+
+    test('generateExpiringSoonRecipe handles ServerException wrapping FunctionsHttpException 403', () async {
+      pantryRepository.expiringItems = [
+        PantryItem(
+          id: 'p-1',
+          userId: 'u-1',
+          name: 'Spinach',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      ];
+      recipeRepository.throwOnExpiring = true;
+      recipeRepository.errorMessage =
+          'FunctionsHttpException(status: 403, details: {error: quota_exceeded, message: Monthly recipe generation limit reached.}, reasonPhrase: Forbidden)';
+
+      await controller.generateExpiringSoonRecipe();
+
+      expect(controller.state.isGenerating, isFalse);
+      expect(controller.state.currentRecipe, isNull);
+      expect(controller.state.errorMessage, equals('Your monthly quota has been reached.'));
       expect(controller.state.isQuotaExceeded, isTrue);
     });
   });

@@ -51,11 +51,15 @@ class FavoritesController extends StateNotifier<FavoritesState> {
     final isAlreadyFav = state.favorites.any((f) => f.recipeId == recipe.id || f.recipeSnapshot.name == recipe.name);
 
     if (isAlreadyFav) {
+      final existingFav = state.favorites.firstWhere(
+        (f) => f.recipeId == recipe.id || f.recipeSnapshot.name == recipe.name,
+      );
       try {
-        await _recipeRepository.removeFavorite(recipe.id);
+        final targetRecipeId = existingFav.recipeId.isNotEmpty ? existingFav.recipeId : recipe.id;
+        await _recipeRepository.removeFavorite(targetRecipeId);
         state = state.copyWith(
           favorites: state.favorites
-              .where((f) => f.recipeId != recipe.id && f.recipeSnapshot.name != recipe.name)
+              .where((f) => f.recipeId != existingFav.recipeId && f.recipeSnapshot.name != recipe.name)
               .toList(),
         );
       } catch (e) {

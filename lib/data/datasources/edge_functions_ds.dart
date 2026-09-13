@@ -31,9 +31,12 @@ class EdgeFunctionsDataSource {
         body: body,
       );
 
-      if (response.status == 429) {
-        debugPrint('⚠️ [Supabase Edge Function: ${AppConstants.generateRecipeFunction}] HTTP 429 - Quota exceeded.');
-        throw const QuotaExceededException('Monthly recipe generation quota exceeded.');
+      if (response.status == 429 ||
+          (response.status == 403 &&
+              response.data is Map &&
+              response.data['error'] == 'quota_exceeded')) {
+        debugPrint('⚠️ [Supabase Edge Function: ${AppConstants.generateRecipeFunction}] Quota exceeded.');
+        throw const QuotaExceededException('Your monthly quota has been reached.', code: 'quota_exceeded');
       }
 
       if (response.status != 200) {
@@ -48,9 +51,7 @@ class EdgeFunctionsDataSource {
           : data;
       return Recipe.fromJson(recipeData);
     } catch (e, st) {
-      AppSupabaseClient.logError('EdgeFunction.generateRecipe ($primaryIngredient)', e, st);
-      if (e is AppException) rethrow;
-      throw ServerException(e.toString());
+      _handleException(e, st, 'EdgeFunction.generateRecipe ($primaryIngredient)');
     }
   }
 
@@ -66,9 +67,12 @@ class EdgeFunctionsDataSource {
         },
       );
 
-      if (response.status == 429) {
-        debugPrint('⚠️ [Supabase Edge Function: ${AppConstants.generateRecipeFunction}] HTTP 429 - Quota exceeded.');
-        throw const QuotaExceededException('Monthly recipe generation quota exceeded.');
+      if (response.status == 429 ||
+          (response.status == 403 &&
+              response.data is Map &&
+              response.data['error'] == 'quota_exceeded')) {
+        debugPrint('⚠️ [Supabase Edge Function: ${AppConstants.generateRecipeFunction}] Quota exceeded.');
+        throw const QuotaExceededException('Your monthly quota has been reached.', code: 'quota_exceeded');
       }
 
       if (response.status != 200) {
@@ -83,9 +87,7 @@ class EdgeFunctionsDataSource {
           : data;
       return Recipe.fromJson(recipeData);
     } catch (e, st) {
-      AppSupabaseClient.logError('EdgeFunction.generateExpiringSoonRecipe', e, st);
-      if (e is AppException) rethrow;
-      throw ServerException(e.toString());
+      _handleException(e, st, 'EdgeFunction.generateExpiringSoonRecipe');
     }
   }
 
@@ -120,7 +122,10 @@ class EdgeFunctionsDataSource {
         },
       );
 
-      if (response.status == 429) {
+      if (response.status == 429 ||
+          (response.status == 403 &&
+              response.data is Map &&
+              response.data['error'] == 'quota_exceeded')) {
         debugPrint('⚠️ [Supabase Edge Function: ${AppConstants.scanFoodItemFunction}] HTTP 429 - Quota exceeded.');
         throw const QuotaExceededException('Monthly AI food scan quota exceeded. Please upgrade your subscription.');
       }
@@ -133,10 +138,52 @@ class EdgeFunctionsDataSource {
 
       return response.data as Map<String, dynamic>;
     } catch (e, st) {
-      AppSupabaseClient.logError('EdgeFunction.scanFoodItemWithAi', e, st);
-      if (e is AppException) rethrow;
-      throw ServerException(e.toString());
+      _handleException(
+        e,
+        st,
+        'EdgeFunction.scanFoodItemWithAi',
+        quotaMessage: 'Monthly AI food scan quota exceeded. Please upgrade your subscription.',
+      );
     }
+  }
+
+  Never _handleException(
+    dynamic e,
+    StackTrace st,
+    String operation, {
+    String quotaMessage = 'Your monthly quota has been reached.',
+  }) {
+    AppSupabaseClient.logError(operation, e, st);
+    if (e is AppException) throw e;
+
+    if (e is FunctionException) {
+      final details = e.details;
+      final isQuota = e.status == 429 ||
+          (e.status == 403 &&
+              details is Map &&
+              (details['error']?.toString() == 'quota_exceeded' ||
+                  details['message']?.toString().toLowerCase().contains('quota') == true)) ||
+          (details is Map &&
+              (details['error']?.toString().toLowerCase().contains('quota') == true ||
+                  details['message']?.toString().toLowerCase().contains('quota') == true)) ||
+          e.toString().toLowerCase().contains('quota_exceeded') ||
+          e.toString().toLowerCase().contains('quota exceeded') ||
+          e.toString().toLowerCase().contains('limit reached');
+
+      if (isQuota) {
+        throw QuotaExceededException(
+          quotaMessage,
+          code: 'quota_exceeded',
+        );
+      }
+
+      final message = (details is Map && (details['error'] != null || details['message'] != null))
+          ? (details['message'] ?? details['error']).toString()
+          : (e.reasonPhrase ?? 'Edge function execution failed.');
+      throw ServerException(message, code: e.status.toString());
+    }
+
+    throw ServerException(e.toString());
   }
 }
 

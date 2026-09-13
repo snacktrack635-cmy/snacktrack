@@ -114,8 +114,21 @@ class RecipeDetailScreen extends ConsumerWidget {
               isFav ? Icons.favorite : Icons.favorite_border,
               color: isFav ? AppColors.error : null,
             ),
+            tooltip: isFav ? 'Remove from Saved Recipes' : 'Save to Favorites',
             onPressed: () {
+              final wasFav = isFav;
               ref.read(favoritesControllerProvider.notifier).toggleFavorite(recipe);
+              ScaffoldMessenger.of(context).clearSnackBars();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    wasFav
+                        ? 'Removed "${recipe.name}" from Saved Recipes'
+                        : 'Saved "${recipe.name}" to Favorites!',
+                  ),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
             },
           ),
         ],

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/errors/exceptions.dart';
 import '../../../data/models/recipe.dart';
 import '../../../data/repositories/pantry_repository.dart';
 import '../../../data/repositories/recipe_repository.dart';
@@ -35,6 +36,8 @@ class RecipeGenerationState {
 }
 
 class RecipeGenerationController extends StateNotifier<RecipeGenerationState> {
+  static const String quotaExceededMessage = 'Your monthly quota has been reached.';
+
   final RecipeRepository _recipeRepository;
   final PantryRepository _pantryRepository;
 
@@ -74,13 +77,24 @@ class RecipeGenerationController extends StateNotifier<RecipeGenerationState> {
         isGenerating: false,
         currentRecipe: recipe,
       );
-    } catch (e, st) {
-      debugPrint('❌ [RecipeGenerationController.generateRecipeForItem] Error: $e\n$st');
-      final msg = e.toString();
+    } on QuotaExceededException catch (e) {
+      debugPrint('⚠️ [RecipeGenerationController.generateRecipeForItem] Quota exceeded: $e');
       state = state.copyWith(
         isGenerating: false,
-        errorMessage: msg,
-        isQuotaExceeded: msg.contains('quota') || msg.contains('429'),
+        errorMessage: quotaExceededMessage,
+        isQuotaExceeded: true,
+      );
+    } catch (e, st) {
+      final isQuota = _isQuotaError(e);
+      if (isQuota) {
+        debugPrint('⚠️ [RecipeGenerationController.generateRecipeForItem] Quota exceeded: $e');
+      } else {
+        debugPrint('❌ [RecipeGenerationController.generateRecipeForItem] Error: $e\n$st');
+      }
+      state = state.copyWith(
+        isGenerating: false,
+        errorMessage: isQuota ? quotaExceededMessage : _getErrorMessage(e),
+        isQuotaExceeded: isQuota,
       );
     }
   }
@@ -113,15 +127,49 @@ class RecipeGenerationController extends StateNotifier<RecipeGenerationState> {
         isGenerating: false,
         currentRecipe: recipe,
       );
-    } catch (e, st) {
-      debugPrint('❌ [RecipeGenerationController.generateExpiringSoonRecipe] Error: $e\n$st');
-      final msg = e.toString();
+    } on QuotaExceededException catch (e) {
+      debugPrint('⚠️ [RecipeGenerationController.generateExpiringSoonRecipe] Quota exceeded: $e');
       state = state.copyWith(
         isGenerating: false,
-        errorMessage: msg,
-        isQuotaExceeded: msg.contains('quota') || msg.contains('429'),
+        errorMessage: quotaExceededMessage,
+        isQuotaExceeded: true,
+      );
+    } catch (e, st) {
+      final isQuota = _isQuotaError(e);
+      if (isQuota) {
+        debugPrint('⚠️ [RecipeGenerationController.generateExpiringSoonRecipe] Quota exceeded: $e');
+      } else {
+        debugPrint('❌ [RecipeGenerationController.generateExpiringSoonRecipe] Error: $e\n$st');
+      }
+      state = state.copyWith(
+        isGenerating: false,
+        errorMessage: isQuota ? quotaExceededMessage : _getErrorMessage(e),
+        isQuotaExceeded: isQuota,
       );
     }
+  }
+
+  bool _isQuotaError(dynamic error) {
+    if (error is QuotaExceededException) return true;
+    final str = error.toString().toLowerCase();
+    return str.contains('quota_exceeded') ||
+        str.contains('quota exceeded') ||
+        str.contains('monthly recipe generation limit reached') ||
+        str.contains('limit reached') ||
+        str.contains('monthly quota') ||
+        (str.contains('403') && str.contains('quota')) ||
+        str.contains('429');
+  }
+
+  String _getErrorMessage(dynamic error) {
+    if (error is AppException) {
+      return error.message;
+    }
+    final str = error.toString();
+    if (str.startsWith('Exception: ')) {
+      return str.substring('Exception: '.length);
+    }
+    return str;
   }
 }
 

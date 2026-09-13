@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/network/supabase_client.dart';
@@ -32,17 +33,27 @@ class SupabaseRecipeDataSource {
   }
 
   Future<List<FavoriteRecipe>> getFavorites() async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return [];
+    var userId = _client.auth.currentUser?.id;
+    if (userId == null) {
+      await AppSupabaseClient.ensureAuthenticated();
+      userId = _client.auth.currentUser?.id;
+      if (userId == null) {
+        debugPrint('⚠️ [SupabaseRecipeDataSource.getFavorites] No authenticated user session found.');
+        return [];
+      }
+    }
 
     try {
+      debugPrint('🔍 [SupabaseRecipeDataSource.getFavorites] Fetching favorites from "${AppConstants.favoriteRecipesTable}" for user: $userId');
       final response = await _client
           .from(AppConstants.favoriteRecipesTable)
           .select()
           .eq('user_id', userId)
           .order('created_at', ascending: false);
 
-      return (response as List).map((json) => FavoriteRecipe.fromJson(json)).toList();
+      final list = (response as List).map((json) => FavoriteRecipe.fromJson(json)).toList();
+      debugPrint('✅ [SupabaseRecipeDataSource.getFavorites] Retrieved ${list.length} saved recipes for user: $userId');
+      return list;
     } catch (e, st) {
       AppSupabaseClient.logError('getFavorites', e, st);
       rethrow;
@@ -53,23 +64,32 @@ class SupabaseRecipeDataSource {
     required String recipeId,
     required Recipe recipe,
   }) async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) throw Exception('User not logged in');
+    var userId = _client.auth.currentUser?.id;
+    if (userId == null) {
+      await AppSupabaseClient.ensureAuthenticated();
+      userId = _client.auth.currentUser?.id;
+      if (userId == null) throw Exception('User not logged in');
+    }
+
+    final effectiveRecipeId = recipeId.isNotEmpty ? recipeId : recipe.id;
 
     final data = {
       'user_id': userId,
-      'recipe_id': recipeId,
+      'recipe_id': effectiveRecipeId,
       'recipe_snapshot': recipe.toJson(),
     };
 
     try {
+      debugPrint('💖 [SupabaseRecipeDataSource.addFavorite] Upserting favorite (recipeId: $effectiveRecipeId) for user: $userId');
       final response = await _client
           .from(AppConstants.favoriteRecipesTable)
           .upsert(data)
           .select()
           .single();
 
-      return FavoriteRecipe.fromJson(response);
+      final fav = FavoriteRecipe.fromJson(response);
+      debugPrint('✅ [SupabaseRecipeDataSource.addFavorite] Successfully favorited recipe "${recipe.name}" (id: ${fav.id})');
+      return fav;
     } catch (e, st) {
       AppSupabaseClient.logError('addFavorite ("$recipeId")', e, st);
       rethrow;
@@ -77,15 +97,21 @@ class SupabaseRecipeDataSource {
   }
 
   Future<void> removeFavorite(String recipeId) async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return;
+    var userId = _client.auth.currentUser?.id;
+    if (userId == null) {
+      await AppSupabaseClient.ensureAuthenticated();
+      userId = _client.auth.currentUser?.id;
+      if (userId == null) return;
+    }
 
     try {
+      debugPrint('💔 [SupabaseRecipeDataSource.removeFavorite] Deleting favorite (recipeId: $recipeId) for user: $userId');
       await _client
           .from(AppConstants.favoriteRecipesTable)
           .delete()
           .eq('user_id', userId)
           .eq('recipe_id', recipeId);
+      debugPrint('✅ [SupabaseRecipeDataSource.removeFavorite] Successfully removed favorite $recipeId');
     } catch (e, st) {
       AppSupabaseClient.logError('removeFavorite ("$recipeId")', e, st);
       rethrow;
@@ -93,8 +119,12 @@ class SupabaseRecipeDataSource {
   }
 
   Future<bool> isFavorited(String recipeId) async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return false;
+    var userId = _client.auth.currentUser?.id;
+    if (userId == null) {
+      await AppSupabaseClient.ensureAuthenticated();
+      userId = _client.auth.currentUser?.id;
+      if (userId == null) return false;
+    }
 
     try {
       final response = await _client
